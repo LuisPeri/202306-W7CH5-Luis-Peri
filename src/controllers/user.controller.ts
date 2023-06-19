@@ -17,8 +17,8 @@ export class UserController extends Controller<User> {
 
   async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const passwd = await AuthServices.hash(req.body.password);
-      req.body.password = passwd;
+      const password = await AuthServices.hash(req.body.password);
+      req.body.password = password;
       res.status(201);
       res.send(await this.repo.create(req.body));
     } catch (error) {
@@ -85,6 +85,38 @@ export class UserController extends Controller<User> {
       await this.repo.update(id, user);
       res.status(201);
       res.send(user);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeFriendOrEnemy(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id: userId } = req.body.tokenPayload as PayloadToken;
+      const user = await this.repo.queryById(userId);
+      delete req.body.tokenPayload;
+      const userToDelete = await this.repo.queryById(req.params.id);
+      if (req.path.includes('friends')) {
+        const userIndex = user.friends.findIndex(
+          (item) => item.id === userToDelete.id
+        );
+        user.friends.splice(userIndex, 1);
+        await this.repo.update(userId, user);
+        await this.repo.update(req.params.id, userToDelete);
+        res.status(201);
+        res.send(user);
+      }
+
+      if (req.path.includes('enemies')) {
+        const userIndex = user.enemies.findIndex(
+          (item) => item.id === userToDelete.id
+        );
+        user.enemies.splice(userIndex, 1);
+        await this.repo.update(userId, user);
+        await this.repo.update(req.params.id, userToDelete);
+        res.status(201);
+        res.send(user);
+      }
     } catch (error) {
       next(error);
     }
